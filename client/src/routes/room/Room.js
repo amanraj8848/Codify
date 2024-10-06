@@ -1,26 +1,26 @@
-import { useEffect, useState } from "react";
-import AceEditor from "react-ace";
-import { Toaster, toast } from 'react-hot-toast';
-import { useNavigate, useParams } from "react-router-dom";
-import { generateColor } from "../../utils";
-import './Room.css'
+import { useEffect, useState } from "react"
+import AceEditor from "react-ace"
+import { Toaster, toast } from "react-hot-toast"
+import { useNavigate, useParams } from "react-router-dom"
+import { generateColor } from "../../utils"
+import "./Room.css"
 
-import "ace-builds/src-noconflict/mode-javascript";
-import "ace-builds/src-noconflict/mode-typescript";
-import "ace-builds/src-noconflict/mode-python";
-import "ace-builds/src-noconflict/mode-java";
-import "ace-builds/src-noconflict/mode-yaml";
-import "ace-builds/src-noconflict/mode-golang";
-import "ace-builds/src-noconflict/mode-c_cpp";
-import "ace-builds/src-noconflict/mode-html";
-import "ace-builds/src-noconflict/mode-css";
+import "ace-builds/src-noconflict/mode-javascript"
+import "ace-builds/src-noconflict/mode-typescript"
+import "ace-builds/src-noconflict/mode-python"
+import "ace-builds/src-noconflict/mode-java"
+import "ace-builds/src-noconflict/mode-yaml"
+import "ace-builds/src-noconflict/mode-golang"
+import "ace-builds/src-noconflict/mode-c_cpp"
+import "ace-builds/src-noconflict/mode-html"
+import "ace-builds/src-noconflict/mode-css"
 
-import "ace-builds/src-noconflict/keybinding-emacs";
-import "ace-builds/src-noconflict/keybinding-vim";
+import "ace-builds/src-noconflict/keybinding-emacs"
+import "ace-builds/src-noconflict/keybinding-vim"
 
-import "ace-builds/src-noconflict/theme-monokai";
-import "ace-builds/src-noconflict/ext-language_tools";
-import "ace-builds/src-noconflict/ext-searchbox";
+import "ace-builds/src-noconflict/theme-monokai"
+import "ace-builds/src-noconflict/ext-language_tools"
+import "ace-builds/src-noconflict/ext-searchbox"
 
 export default function Room({ socket }) {
   const navigate = useNavigate()
@@ -30,7 +30,16 @@ export default function Room({ socket }) {
   const [language, setLanguage] = useState(() => "javascript")
   const [codeKeybinding, setCodeKeybinding] = useState(() => undefined)
 
-  const languagesAvailable = ["javascript", "java", "c_cpp", "python", "typescript", "golang", "yaml", "html"]
+  const languagesAvailable = [
+    "javascript",
+    "java",
+    "c_cpp",
+    "python",
+    "typescript",
+    "golang",
+    "yaml",
+    "html",
+  ]
   const codeKeybindingsAvailable = ["default", "emacs", "vim"]
 
   function onChange(newValue) {
@@ -51,13 +60,13 @@ export default function Room({ socket }) {
 
   function handleLeave() {
     socket.disconnect()
-    !socket.connected && navigate('/', { replace: true, state: {} })
+    !socket.connected && navigate("/", { replace: true, state: {} })
   }
 
   function copyToClipboard(text) {
     try {
-      navigator.clipboard.writeText(text);
-      toast.success('Room ID copied')
+      navigator.clipboard.writeText(text)
+      toast.success("Room ID copied")
     } catch (exp) {
       console.error(exp)
     }
@@ -86,10 +95,10 @@ export default function Room({ socket }) {
 
     const backButtonEventListner = window.addEventListener("popstate", function (e) {
       const eventStateObj = e.state
-      if (!('usr' in eventStateObj) || !('username' in eventStateObj.usr)) {
+      if (!("usr" in eventStateObj) || !("username" in eventStateObj.usr)) {
         socket.disconnect()
       }
-    });
+    })
 
     return () => {
       window.removeEventListener("popstate", backButtonEventListner)
@@ -101,36 +110,66 @@ export default function Room({ socket }) {
       <div className="roomSidebar">
         <div className="roomSidebarUsersWrapper">
           <div className="languageFieldWrapper">
-            <select className="languageField" name="language" id="language" value={language} onChange={handleLanguageChange}>
+            <select
+              className="languageField"
+              name="language"
+              id="language"
+              value={language}
+              onChange={handleLanguageChange}>
               {languagesAvailable.map(eachLanguage => (
-                <option key={eachLanguage} value={eachLanguage}>{eachLanguage}</option>
+                <option key={eachLanguage} value={eachLanguage}>
+                  {eachLanguage}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="languageFieldWrapper">
-            <select className="languageField" name="codeKeybinding" id="codeKeybinding" value={codeKeybinding} onChange={handleCodeKeybindingChange}>
+            <select
+              className="languageField"
+              name="codeKeybinding"
+              id="codeKeybinding"
+              value={codeKeybinding}
+              onChange={handleCodeKeybindingChange}>
               {codeKeybindingsAvailable.map(eachKeybinding => (
-                <option key={eachKeybinding} value={eachKeybinding}>{eachKeybinding}</option>
+                <option key={eachKeybinding} value={eachKeybinding}>
+                  {eachKeybinding}
+                </option>
               ))}
             </select>
           </div>
 
-          <p>Connected Users:</p>
+          <p style={{ color: "Green", padding: "5px" }}>Connected Users:</p>
           <div className="roomSidebarUsers">
-            {fetchedUsers.map((each) => (
+            {fetchedUsers.map(each => (
               <div key={each} className="roomSidebarUsersEach">
-                <div className="roomSidebarUsersEachAvatar" style={{ backgroundColor: `${generateColor(each)}` }}>{each.slice(0, 2).toUpperCase()}</div>
-                <div className="roomSidebarUsersEachName">{each}</div>
+                <div
+                  className="roomSidebarUsersEachAvatar"
+                  style={{ backgroundColor: `${generateColor(each)}` }}>
+                  {each.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="roomSidebarUsersEachName" style={{ color: "white" }}>
+                  {each}
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <button className="roomSidebarCopyBtn" onClick={() => { copyToClipboard(roomId) }}>Copy Room id</button>
-        <button className="roomSidebarBtn" onClick={() => {
-          handleLeave()
-        }}>Leave</button>
+        <button
+          className="roomSidebarCopyBtn"
+          onClick={() => {
+            copyToClipboard(roomId)
+          }}>
+          Copy Room id
+        </button>
+        <button
+          className="roomSidebarBtn"
+          onClick={() => {
+            handleLeave()
+          }}>
+          Leave
+        </button>
       </div>
 
       <AceEditor
@@ -154,7 +193,7 @@ export default function Room({ socket }) {
         wrapEnabled={true}
         tabSize={2}
         editorProps={{
-          $blockScrolling: true
+          $blockScrolling: true,
         }}
       />
       <Toaster />

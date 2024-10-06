@@ -37,7 +37,7 @@ export default function SocketWrapper({ children }) {
 
     return location.state && location.state.username ? <div>{addPropsToChildren(children, { socket })}</div> : (
         <div className="room">
-            <h2>No username provided. Please use the form to join a room.</h2>
+             <h2>No username provided. Please use the form to join a room.</h2>
         </div>
     )
 }
