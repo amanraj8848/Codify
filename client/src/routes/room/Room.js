@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import AceEditor from "react-ace"
 import { Toaster, toast } from "react-hot-toast"
 import { useNavigate, useParams } from "react-router-dom"
 import { generateColor } from "../../utils"
-import "./Room.css"
 
 import "ace-builds/src-noconflict/mode-javascript"
 import "ace-builds/src-noconflict/mode-typescript"
@@ -22,13 +21,14 @@ import "ace-builds/src-noconflict/theme-monokai"
 import "ace-builds/src-noconflict/ext-language_tools"
 import "ace-builds/src-noconflict/ext-searchbox"
 
-export default function Room({ socket }) {
+const Room = ({ socket }) => {
   const navigate = useNavigate()
   const { roomId } = useParams()
-  const [fetchedUsers, setFetchedUsers] = useState(() => [])
-  const [fetchedCode, setFetchedCode] = useState(() => "")
-  const [language, setLanguage] = useState(() => "javascript")
-  const [codeKeybinding, setCodeKeybinding] = useState(() => undefined)
+  const [fetchedUsers, setFetchedUsers] = useState([])
+  const [fetchedCode, setFetchedCode] = useState("")
+  const [language, setLanguage] = useState("javascript")
+  const [codeKeybinding, setCodeKeybinding] = useState(undefined)
+  const [editorDimensions, setEditorDimensions] = useState({ width: "100%", height: "100%" })
 
   const languagesAvailable = [
     "javascript",
@@ -42,28 +42,93 @@ export default function Room({ socket }) {
   ]
   const codeKeybindingsAvailable = ["default", "emacs", "vim"]
 
-  function onChange(newValue) {
+  const updateEditorDimensions = useCallback(() => {
+    const editorContainer = document.getElementById("editor-container")
+    if (editorContainer) {
+      setEditorDimensions({
+        width: `${editorContainer.clientWidth}px`,
+        height: `${editorContainer.clientHeight}px`,
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener("resize", updateEditorDimensions)
+    updateEditorDimensions()
+
+    return () => window.removeEventListener("resize", updateEditorDimensions)
+  }, [updateEditorDimensions])
+
+  useEffect(() => {
+    const handleUpdatingClientList = ({ userslist }) => {
+      setFetchedUsers(userslist)
+    }
+
+    const handleLanguageChange = ({ languageUsed }) => {
+      setLanguage(languageUsed)
+    }
+
+    const handleCodeChange = ({ code }) => {
+      setFetchedCode(code)
+    }
+
+    const handleNewMemberJoined = ({ username }) => {
+      toast(`${username} joined`)
+    }
+
+    const handleMemberLeft = ({ username }) => {
+      toast(`${username} left`, {
+        id: `user-left-${username}`,
+      })
+    }
+
+    socket.on("updating client list", handleUpdatingClientList)
+    socket.on("on language change", handleLanguageChange)
+    socket.on("on code change", handleCodeChange)
+    socket.on("new member joined", handleNewMemberJoined)
+    socket.on("member left", handleMemberLeft)
+
+    const backButtonEventListener = e => {
+      const eventStateObj = e.state
+      if (!("usr" in eventStateObj) || !("username" in eventStateObj.usr)) {
+        socket.disconnect()
+      }
+    }
+
+    window.addEventListener("popstate", backButtonEventListener)
+
+    return () => {
+      socket.off("updating client list", handleUpdatingClientList)
+      socket.off("on language change", handleLanguageChange)
+      socket.off("on code change", handleCodeChange)
+      socket.off("new member joined", handleNewMemberJoined)
+      socket.off("member left", handleMemberLeft)
+      window.removeEventListener("popstate", backButtonEventListener)
+    }
+  }, [socket])
+
+  const onChange = newValue => {
     setFetchedCode(newValue)
     socket.emit("update code", { roomId, code: newValue })
     socket.emit("syncing the code", { roomId: roomId })
   }
 
-  function handleLanguageChange(e) {
+  const handleLanguageChange = e => {
     setLanguage(e.target.value)
     socket.emit("update language", { roomId, languageUsed: e.target.value })
     socket.emit("syncing the language", { roomId: roomId })
   }
 
-  function handleCodeKeybindingChange(e) {
+  const handleCodeKeybindingChange = e => {
     setCodeKeybinding(e.target.value === "default" ? undefined : e.target.value)
   }
 
-  function handleLeave() {
+  const handleLeave = () => {
     socket.disconnect()
     !socket.connected && navigate("/", { replace: true, state: {} })
   }
 
-  function copyToClipboard(text) {
+  const copyToClipboard = text => {
     try {
       navigator.clipboard.writeText(text)
       toast.success("Room ID copied")
@@ -72,46 +137,17 @@ export default function Room({ socket }) {
     }
   }
 
-  useEffect(() => {
-    socket.on("updating client list", ({ userslist }) => {
-      setFetchedUsers(userslist)
-    })
-
-    socket.on("on language change", ({ languageUsed }) => {
-      setLanguage(languageUsed)
-    })
-
-    socket.on("on code change", ({ code }) => {
-      setFetchedCode(code)
-    })
-
-    socket.on("new member joined", ({ username }) => {
-      toast(`${username} joined`)
-    })
-
-    socket.on("member left", ({ username }) => {
-      toast(`${username} left`)
-    })
-
-    const backButtonEventListner = window.addEventListener("popstate", function (e) {
-      const eventStateObj = e.state
-      if (!("usr" in eventStateObj) || !("username" in eventStateObj.usr)) {
-        socket.disconnect()
-      }
-    })
-
-    return () => {
-      window.removeEventListener("popstate", backButtonEventListner)
-    }
-  }, [socket])
-
   return (
-    <div className="room">
-      <div className="roomSidebar">
-        <div className="roomSidebarUsersWrapper">
-          <div className="languageFieldWrapper">
+    <div className="flex h-screen bg-gray-900 text-white">
+      <div className="w-64 bg-gray-800 p-4 flex flex-col justify-between overflow-y-auto">
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-center">Codify⚡</h2>
+          <div className="mb-4">
+            <label htmlFor="language" className="block text-sm font-medium mb-1">
+              Language
+            </label>
             <select
-              className="languageField"
+              className="w-full bg-gray-700 text-white rounded p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               name="language"
               id="language"
               value={language}
@@ -124,9 +160,12 @@ export default function Room({ socket }) {
             </select>
           </div>
 
-          <div className="languageFieldWrapper">
+          <div className="mb-4">
+            <label htmlFor="codeKeybinding" className="block text-sm font-medium mb-1">
+              Keybinding
+            </label>
             <select
-              className="languageField"
+              className="w-full bg-gray-700 text-white rounded p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               name="codeKeybinding"
               id="codeKeybinding"
               value={codeKeybinding}
@@ -139,64 +178,65 @@ export default function Room({ socket }) {
             </select>
           </div>
 
-          <p style={{ color: "Green", padding: "5px" }}>Connected Users:</p>
-          <div className="roomSidebarUsers">
-            {fetchedUsers.map(each => (
-              <div key={each} className="roomSidebarUsersEach">
-                <div
-                  className="roomSidebarUsersEachAvatar"
-                  style={{ backgroundColor: `${generateColor(each)}` }}>
-                  {each.slice(0, 2).toUpperCase()}
+          <div className="mb-4">
+            <h3 className="text-green-400 mb-2 font-semibold">Connected Users</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {fetchedUsers.map(each => (
+                <div key={each} className="flex items-center space-x-2 bg-gray-700 p-2 rounded">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                    style={{ backgroundColor: `${generateColor(each)}` }}>
+                    {each.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="text-sm truncate">{each}</div>
                 </div>
-                <div className="roomSidebarUsersEachName" style={{ color: "white" }}>
-                  {each}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <button
-          className="roomSidebarCopyBtn"
-          onClick={() => {
-            copyToClipboard(roomId)
-          }}>
-          Copy Room id
-        </button>
-        <button
-          className="roomSidebarBtn"
-          onClick={() => {
-            handleLeave()
-          }}>
-          Leave
-        </button>
+        <div className="space-y-2">
+          <button
+            className="w-full py-2 px-4 rounded bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            onClick={() => copyToClipboard(roomId)}>
+            Copy Room ID
+          </button>
+          <button
+            className="w-full py-2 px-4 rounded bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            onClick={handleLeave}>
+            Leave
+          </button>
+        </div>
       </div>
 
-      <AceEditor
-        placeholder="Write your code here."
-        className="roomCodeEditor"
-        mode={language}
-        keyboardHandler={codeKeybinding}
-        theme="monokai"
-        name="collabEditor"
-        width="auto"
-        height="auto"
-        value={fetchedCode}
-        onChange={onChange}
-        fontSize={15}
-        showPrintMargin={true}
-        showGutter={true}
-        highlightActiveLine={true}
-        enableLiveAutocompletion={true}
-        enableBasicAutocompletion={false}
-        enableSnippets={false}
-        wrapEnabled={true}
-        tabSize={2}
-        editorProps={{
-          $blockScrolling: true,
-        }}
-      />
+      <div id="editor-container" className="flex-1 relative">
+        <AceEditor
+          placeholder="Write your code here."
+          mode={language}
+          keyboardHandler={codeKeybinding}
+          theme="monokai"
+          name="collabEditor"
+          value={fetchedCode}
+          onChange={onChange}
+          fontSize={15}
+          showPrintMargin={false}
+          showGutter={true}
+          highlightActiveLine={true}
+          enableLiveAutocompletion={true}
+          enableBasicAutocompletion={false}
+          enableSnippets={false}
+          wrapEnabled={true}
+          tabSize={2}
+          editorProps={{
+            $blockScrolling: true,
+          }}
+          style={editorDimensions}
+          className="absolute top-0 right-0 bottom-0 left-0"
+        />
+      </div>
       <Toaster />
     </div>
   )
 }
+
+export default Room
